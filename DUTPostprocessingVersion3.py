@@ -72,6 +72,8 @@ data = np.genfromtxt(BASEname,unpack = True, skip_header = 77)            # Raw 
 PtxDevice = Data + NewCableLoss - Gantenna - RChamber                                     # calibrated data  transmitted by device     
 PtxBaseline = data + NewCableLoss - Gantenna - RChamber                                   # calibrated data from reverberation chamber's environment           
 
+""" Calibrated data (Voltage) """
+
 """Changing the units from dBm to dBuV/m"""                                                # conversion formular Efield = Transmitted Power + 10log(Zo/4pir^2) + 90
 r =10                                                                                      # Separation distance (taken as 10 meters away from receiving antenna)
 Zo =377                                                                                    # Free Space Impendance
@@ -147,6 +149,7 @@ plt.show()
 #F.writerow(['Radiated Emissions from DUT'])
 #F.writerow(['Freq[MHz]','P[dBm]','EField[dBuV/m]'])
 #F.writerows(Num)
+
 
 '''
 """*****************************************************************************************************************************************************************************************************************""" 
@@ -539,3 +542,9 @@ for i in range(3):
 	myFile.write("X-Band"+","+str(Xfreq[i]) + "," + str(Xmax[i]) + "," + str(Xmaxp[i])+'\n')
 myFile.close() 
 #Add part which calculates the minimum required seperation distance
+
+def calcVolt(Prsa, Lcable, Linsertion, AF):
+	#No LNA compensation
+	Vrsa = Prsa + 106.9 #Gives the answer in dBuv	
+	Vd = Vrsa + Lcable + Linsertion #Gives the answer of the voltage just befor the antenna
+	
