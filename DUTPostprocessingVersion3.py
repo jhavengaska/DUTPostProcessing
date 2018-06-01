@@ -17,6 +17,26 @@ import matplotlib.pyplot as plt
 import sys
 import csv
 
+def calcEfield(Prsa, Lcable, Linsertion, Glna, AFact):
+	Vrsa = Prsa + 106.9897 #Gives the answer in dBuv	
+	Vd = Vrsa + Lcable + Linsertion #Gives the answer in dBuV of the voltage just before the LNA
+	Vlna = Vd - Glna #Gives the answer in dBuV just before the antenna
+	Efield = Vd - AFact #Factor in the Antenna Factor
+	return(Efield)
+
+def calcEfieldPow(Prsa, Lcable, Linsertion, Glna, Gant, Freq):
+	Plessloss = Prsa + Lcable + Linsertion - Glna - Gant
+	"""Changing the units from dBm to dBuV/m"""                                                # conversion formular Efield = Transmitted Power + 10log(Zo/4pir^2) + 90
+	r =10                                                                                      # Separation distance (taken as 10 meters away from receiving antenna)
+	Zo =377                                                                                    # Free Space Impendance
+	CFactor = 10*np.log10(Zo/(4*(np.pi)*(r**2))) + 90 + 20*np.log10(Freq)                      # conversion factor (from dBm to dBuV/m)
+	Efield = Plessloss + CFactor
+	return(Efield)
+
+def calcEfieldatR(Prsa, Lcable, Linsertion, AF):
+	Vrsa = Prsa + 106.9 #Gives the answer in dBuv	
+	return(Vrsa)
+
 # >>>>>>>>>>>>>> THIS IS THE PART YOU MUST/CAN EDIT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #Remember to edit these according to what you are testing
@@ -30,7 +50,10 @@ DUTname = "Getac Tablet 100kHz 30.csv"	#The filename of the CSV that contains th
 
 #File names for cable, antenna and chamber factors
 Cablename = 'CableLoss_Pinelands_6a_6b.csv'
-CCFname = 'IL_03_06_15.csv'
+CCFname = 'ACF_03_06_15.csv'
+AntName = 'Antenna_MESA_GLPDA.csv'
+LNAName = 'No_LNA.csv'
+#LNAName = 'LNA_3.csv'
 #sarasy = 1 #Plot SARAS limits (1 = Yes, 0 = No)
 #cispray = 1 #Plot CISPR limits (1 = Yes, 0 = No)
 
@@ -63,8 +86,46 @@ NewCableLoss = np.interp(frequency,CableLoss[0],CableLoss[1])                   
 InsertionLoss = np.genfromtxt(CCFname, unpack = True, delimiter = ',', skip_header = 8)   # chamber calibration factor ((CCF)/Insertion losses csv file) 
 NewInsertionLoss = np.interp(frequency,InsertionLoss[0],InsertionLoss[1])                                                                        
 RChamber = 10*np.log10(NewInsertionLoss)                                                  # changing interpolated values from linear to log                                                                                            
+Antenna = np.genfromtxt(AntName, unpack = True, delimiter = ',', skip_header = 2)	  #Read antenna csv file
+AF = np.interp(frequency,Antenna[0], Antenna[3])					  #Interpolate to get Antenna Factor
+AGain = np.interp(frequency,Antenna[0], Antenna[1])					  #Interpolate to get Antenna Facto
+LNAGainf = np.genfromtxt(LNAName, unpack = True, delimiter = ',', skip_header = 2)
+LNAGain = np.interp(frequency,LNAGainf[0], LNAGainf[1])
 Gantenna = 10*np.log10(0.75)                                                              # 0.75 is the Antenna's efficiency
 #print(RChamber.shape) 
+
+plt.figure()        
+plt.plot(frequency,RChamber,'k')
+plt.title("Insertion loss vs frequency",fontsize=12)
+plt.xlabel('Frequency [Hz]',fontsize=8)
+plt.ylabel('Insertion Loss [dB]',fontsize=8)	
+
+
+plt.figure()        
+plt.plot(frequency,NewCableLoss,'k')
+plt.title("Cable loss vs frequency",fontsize=12)
+plt.xlabel('Frequency [Hz]',fontsize=8)
+plt.ylabel('Cable Loss [dB]',fontsize=8)	
+
+#print(str(Gantenna))
+
+plt.figure()        
+plt.plot(frequency,AF,'k')
+plt.title("Antenna Factor vs frequency",fontsize=12)
+plt.xlabel('Frequency [Hz]',fontsize=8)
+plt.ylabel('Antenna Factor [dB/m]',fontsize=8)	
+
+plt.figure()        
+plt.plot(frequency,AGain,'k')
+plt.title("Antenna Gain vs frequency",fontsize=12)
+plt.xlabel('Frequency [Hz]',fontsize=8)
+plt.ylabel('Antenna Gain [dB]',fontsize=8)	
+
+plt.figure()        
+plt.plot(frequency,LNAGain,'k')
+plt.title("LNA Gain vs frequency",fontsize=12)
+plt.xlabel('Frequency [Hz]',fontsize=8)
+plt.ylabel('LNA Gain [dB]',fontsize=8)	
 
 """ Calibrated Data (Power) transmitted from device"""
 Data = np.genfromtxt(DUTname,unpack = True, skip_header = 77)            # Raw data from Deive
@@ -73,6 +134,23 @@ PtxDevice = Data + NewCableLoss - Gantenna - RChamber                           
 PtxBaseline = data + NewCableLoss - Gantenna - RChamber                                   # calibrated data from reverberation chamber's environment           
 
 """ Calibrated data (Voltage) """
+EVolDevice = calcEfield(Data, NewCableLoss, RChamber, LNAGain, AF)
+
+plt.figure()        
+plt.plot(frequency,EVolDevice,'k')
+plt.title("E-Field according to voltage method vs frequency",fontsize=12)
+plt.xlabel('Frequency [Hz]',fontsize=8)
+plt.ylabel('E-Field [dBuV/m]',fontsize=8)
+
+"""Calibrated data (Power) """
+EPowDevice = calcEfieldPow(Data, NewCableLoss, RChamber, LNAGain, AGain, frequency)
+
+plt.figure()        
+plt.plot(frequency,EPowDevice,'k')
+plt.title("E-Field according to power method vs frequency",fontsize=12)
+plt.xlabel('Frequency [Hz]',fontsize=8)
+plt.ylabel('E-Field [dBuV/m]',fontsize=8)
+
 
 """Changing the units from dBm to dBuV/m"""                                                # conversion formular Efield = Transmitted Power + 10log(Zo/4pir^2) + 90
 r =10                                                                                      # Separation distance (taken as 10 meters away from receiving antenna)
@@ -541,10 +619,3 @@ for i in range(3):
 	print(str(i+1)+" >> "+str(Xfreq[i]) + " >> " + str(Xmax[i]) + " >> " + str(Xmaxp[i]))
 	myFile.write("X-Band"+","+str(Xfreq[i]) + "," + str(Xmax[i]) + "," + str(Xmaxp[i])+'\n')
 myFile.close() 
-#Add part which calculates the minimum required seperation distance
-
-def calcVolt(Prsa, Lcable, Linsertion, AF):
-	#No LNA compensation
-	Vrsa = Prsa + 106.9 #Gives the answer in dBuv	
-	Vd = Vrsa + Lcable + Linsertion #Gives the answer of the voltage just befor the antenna
-	
