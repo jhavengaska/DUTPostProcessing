@@ -18,24 +18,34 @@ import sys
 import csv
 
 def calcEfield(Prsa, Lcable, Linsertion, Glna, AFact):
+	""" This function takes the measured power(dBm) from the spectrum analyzer
+	along with the cable losses (dB), the reverberation chamber calibration factor(dB),
+	the gain from the LNA(dB) and the antenna factor(dB/m) to caluclate the E-field at
+	the receiving antenna."""
 	Vrsa = Prsa + 106.9897 #Gives the answer in dBuv	
+	Linsertion = Linsertion * -1.00 #Given as a loss in negative dB of the ACF of the Chamber
 	Vd = Vrsa + Lcable + Linsertion #Gives the answer in dBuV of the voltage just before the LNA
-	Vlna = Vd - Glna #Gives the answer in dBuV just before the antenna
-	Efield = Vd - AFact #Factor in the Antenna Factor
-	return(Efield)
+	Vlna = Vd - Glna #Gives the answer in dBuV just before the antenna and after the LNA
+	E = Vlna + AFact #Factor in the Antenna Factor
+	return(E)
 
-def calcEfieldPow(Prsa, Lcable, Linsertion, Glna, Gant, Freq):
-	Plessloss = Prsa + Lcable + Linsertion - Glna - Gant
-	"""Changing the units from dBm to dBuV/m"""                                                # conversion formular Efield = Transmitted Power + 10log(Zo/4pir^2) + 90
-	r =10                                                                                      # Separation distance (taken as 10 meters away from receiving antenna)
+def calcEfieldPow(Prsa, Lcable, Linsertion, Glna):
+	""" This function takes the measured power(dBm) from the spectrum analyzer
+	along with the cable losses (dB), the reverberation chamber calibration factor(dB),
+	the gain from the LNA(dB) and the frequencies of operation(Hz) to caluclate the E-field at
+	the receiving antenna."""
 	Zo =377                                                                                    # Free Space Impendance
-	CFactor = 10*np.log10(Zo/(4*(np.pi)*(r**2))) + 90 + 20*np.log10(Freq)                      # conversion factor (from dBm to dBuV/m)
+	r = 10
+	Aeff = 0.75
+	Linsertion = (Linsertion - 10*np.log(Aeff)) * -1.00 #Given as a loss in negative dB of the ACF of the Chamber
+	Plessloss = Prsa + Lcable + Linsertion - Glna 
+	CFactor = 10*np.log10(Zo/(4*(np.pi)*(r**2))) + 90                      # conversion factor (from dBm to dBuV/m)
 	Efield = Plessloss + CFactor
-	return(Efield)
+	return(Efield, Plessloss)
 
-def calcEfieldatR(Prsa, Lcable, Linsertion, AF):
-	Vrsa = Prsa + 106.9 #Gives the answer in dBuv	
-	return(Vrsa)
+def EftoEIRP(Ef, d):
+	eirp = Ef + 20*np.log10(d) - 104.68
+	return(eirp)
 
 # >>>>>>>>>>>>>> THIS IS THE PART YOU MUST/CAN EDIT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -143,7 +153,7 @@ plt.xlabel('Frequency [Hz]',fontsize=8)
 plt.ylabel('E-Field [dBuV/m]',fontsize=8)
 
 """Calibrated data (Power) """
-EPowDevice = calcEfieldPow(Data, NewCableLoss, RChamber, LNAGain, AGain, frequency)
+EPowDevice, PowPowDevice = calcEfieldPow(Data, NewCableLoss, RChamber, LNAGain)
 
 plt.figure()        
 plt.plot(frequency,EPowDevice,'k')
