@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import sys
 import csv
 
-def calcEfield(Prsa, Lcable, Linsertion, Glna, AFact):
+'''def calcEfield(Prsa, Lcable, Linsertion, Glna, AFact):
 	""" This function takes the measured power(dBm) from the spectrum analyzer
 	along with the cable losses (dB), the reverberation chamber calibration factor(dB),
 	the gain from the LNA(dB) and the antenna factor(dB/m) to caluclate the E-field at
@@ -27,31 +27,36 @@ def calcEfield(Prsa, Lcable, Linsertion, Glna, AFact):
 	Vd = Vrsa + Lcable + Linsertion #Gives the answer in dBuV of the voltage just before the LNA
 	Vlna = Vd - Glna #Gives the answer in dBuV just before the antenna and after the LNA
 	E = Vlna + AFact #Factor in the Antenna Factor
-	return(E)
+	return(E)'''
 
 def calcEfieldPow(Prsa, Lcable, Linsertion, Glna):
 	""" This function takes the measured power(dBm) from the spectrum analyzer
 	along with the cable losses (dB), the reverberation chamber calibration factor(dB),
 	the gain from the LNA(dB) and the frequencies of operation(Hz) to caluclate the E-field at
 	the receiving antenna."""
-	Zo =377                                                                                    # Free Space Impendance
+	eps0 = 8.854E-12
+	mu0 = 4*np.pi*1E-7
+	#c0 = 1./np.sqrt(eps0 * mu0)
+	Zo= np.sqrt(mu0/eps0)
+	#Zo =377                                                                                    # Free Space Impendance
 	r = 10
-	Aeff = 0.75
+	Aeff = 0.8
 	Linsertion = (Linsertion - 10*np.log(Aeff)) * -1.00 #Given as a loss in negative dB of the ACF of the Chamber
 	Plessloss = Prsa + Lcable + Linsertion - Glna 
-	CFactor = 10*np.log10(Zo/(4*(np.pi)*(r**2))) + 90                      # conversion factor (from dBm to dBuV/m)
+	CFactor = 10*np.log10(Zo/(4*(np.pi)*(r**2))) + 90   #Conversion factor (from dBm to dBuV/m)
+	#print(CFactor)
 	Efield = Plessloss + CFactor
 	return(Efield, Plessloss)
 
-def EftoEIRP(Ef, d):
-	eirp = Ef + 20*np.log10(d) - 104.68
-	return(eirp)
+# def EftoEIRP(Ef, d):
+	# eirp = Ef + 20*np.log10(d) - 104.68
+	# return(eirp)
 
 # >>>>>>>>>>>>>> THIS IS THE PART YOU MUST/CAN EDIT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #Remember to edit these according to what you are testing
-DeviceName = "GETAC T800 Tablet"
-outputfilename = "GETAC T800 Tablet"
+DeviceName = "Getac Tablet"
+outputfilename = "Getac Tablet"
 NumberPoints = 64001 #Maybe enter this as a GUI?
 StartFreq = 80000000 #Maybe enter this as a GUI?
 StopFreq  = 6000000000 #Maybe enter this as a GUI?
@@ -103,7 +108,7 @@ LNAGainf = np.genfromtxt(LNAName, unpack = True, delimiter = ',', skip_header = 
 LNAGain = np.interp(frequency,LNAGainf[0], LNAGainf[1])
 Gantenna = 10*np.log10(0.75)                                                              # 0.75 is the Antenna's efficiency
 #print(RChamber.shape) 
-
+'''
 plt.figure()        
 plt.plot(frequency,RChamber,'k')
 plt.title("Insertion loss vs frequency",fontsize=12)
@@ -136,38 +141,43 @@ plt.plot(frequency,LNAGain,'k')
 plt.title("LNA Gain vs frequency",fontsize=12)
 plt.xlabel('Frequency [Hz]',fontsize=8)
 plt.ylabel('LNA Gain [dB]',fontsize=8)	
+'''
 
 """ Calibrated Data (Power) transmitted from device"""
 Data = np.genfromtxt(DUTname,unpack = True, skip_header = 77)            # Raw data from Deive
 data = np.genfromtxt(BASEname,unpack = True, skip_header = 77)            # Raw data from reverberation chamber's environment                
-PtxDevice = Data + NewCableLoss - Gantenna - RChamber                                     # calibrated data  transmitted by device     
-PtxBaseline = data + NewCableLoss - Gantenna - RChamber                                   # calibrated data from reverberation chamber's environment           
+#PtxDevice = Data + NewCableLoss - Gantenna - RChamber                                     # calibrated data  transmitted by device     
+#PtxBaseline = data + NewCableLoss - Gantenna - RChamber                                   # calibrated data from reverberation chamber's environment           
 
-""" Calibrated data (Voltage) """
-EVolDevice = calcEfield(Data, NewCableLoss, RChamber, LNAGain, AF)
+# """ Calibrated data (Voltage) """
+# EVolDevice = calcEfield(Data, NewCableLoss, RChamber, LNAGain, AF)
 
-plt.figure()        
-plt.plot(frequency,EVolDevice,'k')
-plt.title("E-Field according to voltage method vs frequency",fontsize=12)
-plt.xlabel('Frequency [Hz]',fontsize=8)
-plt.ylabel('E-Field [dBuV/m]',fontsize=8)
+# plt.figure()        
+# plt.plot(frequency,EVolDevice,'k')
+# plt.title("E-Field according to voltage method vs frequency",fontsize=12)
+# plt.xlabel('Frequency [Hz]',fontsize=8)
+# plt.ylabel('E-Field [dBuV/m]',fontsize=8)
+
+#"""Calibrated data (Power) """
+#EPowDevice, PowPowDevice = calcEfieldPow(Data, NewCableLoss, RChamber, LNAGain)
+
+# plt.figure()        
+# plt.plot(frequency,EPowDevice,'k')
+# plt.title("E-Field according to power method vs frequency",fontsize=12)
+# plt.xlabel('Frequency [Hz]',fontsize=8)
+# plt.ylabel('E-Field [dBuV/m]',fontsize=8)
+
+
+# """Changing the units from dBm to dBuV/m"""                                                # conversion formular Efield = Transmitted Power + 10log(Zo/4pir^2) + 90
+# r =10                                                                                      # Separation distance (taken as 10 meters away from receiving antenna)
+# Zo =377                                                                                    # Free Space Impendance
+# ConvFactor = 10*np.log10(Zo/(4*(np.pi)*(r**2))) + 90                                       # conversion factor (from dBm to dBuV/m)
+#EField_Device = PtxDevice + ConvFactor                                                     # Electric field radiated by device
+#EField_Baseline = PtxBaseline  + ConvFactor                                                # Electric field radiated by reverberation chamber's environment
 
 """Calibrated data (Power) """
-EPowDevice, PowPowDevice = calcEfieldPow(Data, NewCableLoss, RChamber, LNAGain)
-
-plt.figure()        
-plt.plot(frequency,EPowDevice,'k')
-plt.title("E-Field according to power method vs frequency",fontsize=12)
-plt.xlabel('Frequency [Hz]',fontsize=8)
-plt.ylabel('E-Field [dBuV/m]',fontsize=8)
-
-
-"""Changing the units from dBm to dBuV/m"""                                                # conversion formular Efield = Transmitted Power + 10log(Zo/4pir^2) + 90
-r =10                                                                                      # Separation distance (taken as 10 meters away from receiving antenna)
-Zo =377                                                                                    # Free Space Impendance
-ConvFactor = 10*np.log10(Zo/(4*(np.pi)*(r**2))) + 90                                       # conversion factor (from dBm to dBuV/m)
-EField_Device = PtxDevice + ConvFactor                                                     # Electric field radiated by device
-EField_Baseline = PtxBaseline  + ConvFactor                                                # Electric field radiated by reverberation chamber's environment
+EField_Device, PtxDevice = calcEfieldPow(Data, NewCableLoss, RChamber, LNAGain)
+EField_Baseline, PtxBaseline = calcEfieldPow(data, NewCableLoss, RChamber, LNAGain)
 
 #Get min values for plots
 minE = min(EField_Baseline)
@@ -219,6 +229,7 @@ plt.xlabel('Frequency [MHz]',fontsize=8),plt.ylabel('Electric Field Strength\n [
 plt.grid(True,which="both",ls="--"),plt.ylim(minE,maxE),plt.subplots_adjust(hspace=0.4)
 plt.savefig(savefilename,bbox_inches='tight')
 plt.show()
+
 titel = DeviceName + " Spectrum Analyzer Raw Data"
 plt.figure()        
 plt.plot(Frequency,Data,'k',Frequency,data,'b')
