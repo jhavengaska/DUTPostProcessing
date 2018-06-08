@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 import sys
 import csv
 
+
+
 '''def calcEfield(Prsa, Lcable, Linsertion, Glna, AFact):
 	""" This function takes the measured power(dBm) from the spectrum analyzer
 	along with the cable losses (dB), the reverberation chamber calibration factor(dB),
@@ -29,7 +31,59 @@ import csv
 	E = Vlna + AFact #Factor in the Antenna Factor
 	return(E)'''
 
-def calcEfieldPow(Prsa, Lcable, Linsertion, Glna):
+# def GetHigh(FreqMHZ, PWR, EFS, FStart, FStop):
+	# """This function takes the frequency dataset, in MHz, the EIRP of the DUT in dBm
+	# and the Electric Field Strength in dbUv/m and calculates the highest 5
+	# measured radiations starting from FStart, in MHz, and ending in FStop, in MHZ."""
+	# N = 5
+	# Max = [-20,-20,-20]
+	# Max = [-20] * N
+	# Maxp = [-200,-200,-200]
+	# Maxp = [-200] * N
+	# Mfreq = [0,0,0]
+	# Mfreq = [0] * N
+	# for i, val in enumerate(FreqMHz):
+		# if Fstart <= values <= FStop:
+			# #This is for HERA
+			# if EFS[i] > Max[0]:
+				# for s in range(N-1,0,-1):
+					# Max[s] = Max[(s-1)]
+					# Maxp[s] = Maxp[(s-1)]
+					# Hfreq[s] = Hfreq[(s-1)]
+				# Max[0] = EFS[i]
+				# Maxp[0] = PWR[i]
+				# Hfreq[0] = val
+			# elif EField_Device[ind] > Hmax[1]:
+				# Hmax[2] = Hmax[1]
+				# Hmaxp[2] = Hmaxp[1]
+				# Hfreq[2] = Hfreq[1]
+				# Hmax[1] = EField_Device[ind]
+				# Hmaxp[1] = PtxDevice[ind]
+				# Hfreq[1] = values
+			# elif EField_Device[ind] > Hmax[2]:
+				# Hmax[2] = EField_Device[ind]
+				# Hmaxp[2] = PtxDevice[ind]
+				# Hfreq[2] = values
+				
+# def max_indices(arr, k):
+    # """
+    # Returns the indices of the k first largest elements of arr
+    # (in descending order in values)
+    # """
+    # assert k <= arr.size, 'k should be smaller or equal to the array size'
+    # arr_ = arr.astype(float)  # make a copy of arr
+    # max_idxs = []
+    # for _ in range(k):
+        # max_element = np.max(arr_)
+        # if np.isinf(max_element):
+            # break
+        # else:
+            # idx = np.where(arr_ == max_element)
+        # max_idxs.append(idx)
+        # arr_[idx] = -np.inf
+    # return max_idxs
+
+def calcEfieldPow(Prsa, Lcable, Linsertion, Glna, Aeff, r):
 	""" This function takes the measured power(dBm) from the spectrum analyzer
 	along with the cable losses (dB), the reverberation chamber calibration factor(dB),
 	the gain from the LNA(dB) and the frequencies of operation(Hz) to caluclate the E-field at
@@ -39,8 +93,6 @@ def calcEfieldPow(Prsa, Lcable, Linsertion, Glna):
 	#c0 = 1./np.sqrt(eps0 * mu0)
 	Zo= np.sqrt(mu0/eps0)
 	#Zo =377                                                                                    # Free Space Impendance
-	r = 10
-	Aeff = 0.8
 	Linsertion = (Linsertion - 10*np.log(Aeff)) * -1.00 #Given as a loss in negative dB of the ACF of the Chamber
 	Plessloss = Prsa + Lcable + Linsertion - Glna 
 	CFactor = 10*np.log10(Zo/(4*(np.pi)*(r**2))) + 90   #Conversion factor (from dBm to dBuV/m)
@@ -62,6 +114,8 @@ StartFreq = 80000000 #Maybe enter this as a GUI?
 StopFreq  = 6000000000 #Maybe enter this as a GUI?
 BASEname = "Baseline 100kHz 30.csv"	#The filename of the CSV that contains the baseline measurements
 DUTname = "Getac Tablet 100kHz 30.csv"	#The filename of the CSV that contains the DUT measurements
+AntEff = 0.8 #Antenna Efficiency, used for E-Field calculations
+Dist = 10 #Distance from DUT for E-Field calculations (m)
 
 #File names for cable, antenna and chamber factors
 Cablename = 'CableLoss_Pinelands_6a_6b.csv'
@@ -86,8 +140,8 @@ LNAName = 'No_LNA.csv'
 #	print("DUT file not selected")
 #	sys.exit()
 	
-savefilename = outputfilename+".png"
-savefilename2 = outputfilename+"_raw"+".png"
+savefilename = outputfilename+"_dbm"+".png"
+savefilename2 = outputfilename+"_efield"+".png"
 csvfilename = outputfilename+".csv"
 	
 """Frequency band """
@@ -176,8 +230,8 @@ data = np.genfromtxt(BASEname,unpack = True, skip_header = 77)            # Raw 
 #EField_Baseline = PtxBaseline  + ConvFactor                                                # Electric field radiated by reverberation chamber's environment
 
 """Calibrated data (Power) """
-EField_Device, PtxDevice = calcEfieldPow(Data, NewCableLoss, RChamber, LNAGain)
-EField_Baseline, PtxBaseline = calcEfieldPow(data, NewCableLoss, RChamber, LNAGain)
+EField_Device, PtxDevice = calcEfieldPow(Data, NewCableLoss, RChamber, LNAGain, AntEff, Dist)
+EField_Baseline, PtxBaseline = calcEfieldPow(data, NewCableLoss, RChamber, LNAGain, AntEff, Dist)
 
 #Get min values for plots
 minE = min(EField_Baseline)
@@ -212,33 +266,39 @@ if(max(PtxDevice) > maxTxP):
 maxTxP = maxTxP + 20
 #print(str(minE)+" and " + str(maxE))
 #print(str(minP)+" and " + str(maxP))
-titel = DeviceName + " @ r = 10m"
+
 """Figure will display the Power(dBm)&Efield(dBuV/m) of the device vs. the reverberation chamber's at different frequencies""" 
 plt.figure() 
 ax1=plt.subplot(2,1,1)                              
-plt.plot(Frequency,PtxDevice,'k',Frequency,PtxBaseline,'b')
-plt.title(titel,fontsize=12)
-plt.xlabel('Frequency [MHz]',fontsize=8)
-plt.ylabel('Power [dBm]',fontsize=8)	
-plt.legend([DeviceName,'Reverberation Chamber/Baseline'],loc =1,fontsize=8)
-plt.grid(True,which="both",ls="--")
-plt.ylim(minTxP,maxTxP)
-ax2=plt.subplot(2,1,2) 
-plt.plot(Frequency,EField_Device,'k',Frequency,EField_Baseline,'b')
-plt.xlabel('Frequency [MHz]',fontsize=8),plt.ylabel('Electric Field Strength\n [dBuV/m]',fontsize=8)
-plt.grid(True,which="both",ls="--"),plt.ylim(minE,maxE),plt.subplots_adjust(hspace=0.4)
-plt.savefig(savefilename,bbox_inches='tight')
-plt.show()
-
 titel = DeviceName + " Spectrum Analyzer Raw Data"
-plt.figure()        
 plt.plot(Frequency,Data,'k',Frequency,data,'b')
 plt.title(titel,fontsize=12)
 plt.xlabel('Frequency [MHz]',fontsize=8)
 plt.ylabel('Power [dBm]',fontsize=8)	
 plt.legend([DeviceName,'Reverberation Chamber/Baseline'],loc =1,fontsize=8)
 plt.grid(True,which="both",ls="--")
-plt.ylim(minP,maxP)                 
+plt.ylim(minP,maxP)
+ax2=plt.subplot(2,1,2) 
+plt.plot(Frequency,PtxDevice,'k',Frequency,PtxBaseline,'b')
+titel = DeviceName + " EIRP"
+plt.title(titel,fontsize=12)
+plt.xlabel('Frequency [MHz]',fontsize=8)
+plt.ylabel('Power [dBm]',fontsize=8)	
+plt.legend([DeviceName,'Reverberation Chamber/Baseline'],loc =1,fontsize=8)
+plt.grid(True,which="both",ls="--")
+plt.ylim(minTxP,maxTxP)
+plt.subplots_adjust(hspace=0.4)
+plt.savefig(savefilename,bbox_inches='tight')
+plt.show()
+
+titel = DeviceName + " Electric Field Strength @ "+str(Dist)+"10m"
+plt.figure()
+plt.plot(Frequency,EField_Device,'k',Frequency,EField_Baseline,'b')
+plt.title(titel,fontsize=12)
+plt.xlabel('Frequency [MHz]',fontsize=8)
+plt.ylabel('Electric Field Strength\n [dBuV/m]',fontsize=8)
+plt.grid(True,which="both",ls="--")
+plt.ylim(minE,maxE),                        
 plt.savefig(savefilename2,bbox_inches='tight')
 plt.show()
 
@@ -418,6 +478,10 @@ N2freq = [0,0,0]
 Xmax = [0,0,0]
 Xmaxp = [-200,-200,-200]
 Xfreq = [0,0,0]
+
+# indices = max_indices(EField_Device, 3)
+# print(indices)
+# print(str(EField_Device[indices[0][0]]))
 
 for ind, values in enumerate(Frequency):
 	if 100 <= values <= 200:
@@ -604,6 +668,7 @@ for ind, values in enumerate(Frequency):
 			Xmax[2] = EField_Device[ind]
 			Xmaxp[2] = PtxDevice[ind]
 			Xfreq[2] = values	
+
 myFile = open(csvfilename, 'w')
 myFile.write("Band"+","+"Frequency"+"," + "E-Field"+"," + "EIRP"+'\n')
 print("Results for "+DeviceName);
